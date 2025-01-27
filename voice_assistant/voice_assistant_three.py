@@ -9,7 +9,7 @@ from googletrans import Translator
 import asyncio
 
 KEYWORDS = ["ассистент", "assistant", "компьютер", "бот", "флот", "flout", "float"]  # Список ключевых слов
-APP_LIST_PATH = "exe_files_list.txt"  # Путь к файлу с приложениями
+APP_LIST_PATH = "./voice_assistant/exe_files_list.txt"  # Путь к файлу с приложениями
 
 def recognize_speech(prompt=""):
     """Распознавание речи и возвращение команды."""
@@ -179,15 +179,6 @@ async def execute_command(command, app_dict):
             switch_audio_device(device_name)
         elif 'покажи устройства звука' in command:
             list_audio_devices()
-        elif command.startswith("запусти"):
-            app_name = command.replace("запусти", "").strip()
-            matched_app = await find_app_in_dict(app_dict, app_name)
-            if matched_app:
-                app_path = app_dict[matched_app]
-                print(f"Запускаю {matched_app} из {app_path}")
-                os.startfile(app_path)
-            else:
-                print(f"Приложение с именем '{app_name}' не найдено в списке.")
         elif 'стоп' in command or 'stop' in command or 'останови программу' in command:
             print("Останавливаю программу.")
             exit()
@@ -197,6 +188,15 @@ async def execute_command(command, app_dict):
             run_adblock()
             os.startfile(r"E:\Discord\app-1.0.9179\Discord.exe")
             open_browser("opera")
+        elif command.startswith("запусти"):
+            app_name = command.replace("запусти", "").strip()
+            matched_app = await find_app_in_dict(app_dict, app_name)
+            if matched_app:
+                app_path = app_dict[matched_app]
+                print(f"Запускаю {matched_app} из {app_path}")
+                os.startfile(app_path)
+            else:
+                print(f"Приложение с именем '{app_name}' не найдено в списке.")
         else:
             print(f"Неизвестная команда: {command}")
     except Exception as e:
