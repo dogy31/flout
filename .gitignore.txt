@@ -1,2 +1,0 @@
-exe_files_list.txt
-text.py
