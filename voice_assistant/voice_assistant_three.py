@@ -15,9 +15,10 @@ from PyQt5.QtGui import QPainter, QColor, QBrush
 from PyQt5.QtCore import Qt, QTimer
 import simpleaudio as sa
 import wave
+import subprocess
 
 KEYWORDS = ["ассистент", "assistant", "компьютер", "бот", "флот", "flout", "float"]  # Список ключевых слов
-APP_LIST_PATH = "./voice_assistant/exe_files_list.txt"  # Путь к файлу с приложениями
+APP_LIST_PATH = "exe_files_list.txt"  # Путь к файлу с приложениями
 
 def recognize_speech(prompt=""):
     """Распознавание речи и возвращение команды."""
@@ -179,8 +180,8 @@ async def execute_command(command, app_dict):
         elif 'youtube' in command or 'ютубе' in command:
             video_name = command.replace(command[:command.index('youtube') + 7], '').strip()
             search_youtube(video_name)
-        elif 'найди' in command or 'открой' in command:
-            query = command.replace('найди', '').replace('открой', '').strip()
+        elif 'найди' in command:
+            query = command.replace('найди', '').strip()
             search_internet(query)
         elif 'звук на' in command:
             device_name = command.replace('звук на', '').strip()
@@ -196,8 +197,13 @@ async def execute_command(command, app_dict):
             run_adblock()
             os.startfile(r"E:\Discord\app-1.0.9179\Discord.exe")
             open_browser("opera")
-        elif command.startswith("запусти"):
-            app_name = command.replace("запусти", "").strip()
+        elif command.startswith("просканируй"):
+            subprocess.run(["python", "voice_assistant/scan.py"])
+        elif command.startswith("запусти") or command.startswith("открой"):
+            if command.startswith("запусти"):
+                app_name = command.replace("запусти", "").strip()
+            if command.startswith("открой"):
+                app_name = command.replace("открой", "").strip()
             matched_app = await find_app_in_dict(app_dict, app_name)
             if matched_app:
                 app_path = app_dict[matched_app]
@@ -292,12 +298,13 @@ if __name__ == "__main__":
         command = recognize_speech()
         if command and any(keyword in command for keyword in KEYWORDS):
             print("Я вас услышал! Скажите команду.")
-            play_sound_with_volume("sound/start.wav", volume=0.4)
+            play_sound_with_volume("sound/start.wav", volume=0.2)
             # Слушаем команду после ключевого слова
             follow_up_command = recognize_speech("Слушаю вашу команду...")
             if follow_up_command:
                 print(f"Распознано: {follow_up_command}")
                 asyncio.run(execute_command(follow_up_command, app_dict))
-                play_sound_with_volume("sound/fin.wav", volume=0.4)
+                play_sound_with_volume("sound/fin.wav", volume=0.2)
             else:
+                play_sound_with_volume("sound/fin.wav", volume=0.2)
                 print("Команда не была распознана.")
