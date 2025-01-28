@@ -7,6 +7,14 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from comtypes import CLSCTX_ALL
 from googletrans import Translator
 import asyncio
+import sys
+import threading
+import numpy as np
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtGui import QPainter, QColor, QBrush
+from PyQt5.QtCore import Qt, QTimer
+import simpleaudio as sa
+import wave
 
 KEYWORDS = ["ассистент", "assistant", "компьютер", "бот", "флот", "flout", "float"]  # Список ключевых слов
 APP_LIST_PATH = "./voice_assistant/exe_files_list.txt"  # Путь к файлу с приложениями
@@ -202,6 +210,80 @@ async def execute_command(command, app_dict):
     except Exception as e:
         print(f"Ошибка при выполнении команды: {e}")
 
+class EqualizerWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.Tool)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setGeometry(100, 100, 320, 120)
+
+        self.bar_count = 5
+        self.bar_heights = [20] * self.bar_count  # Initial small values
+        self.target_heights = [20] * self.bar_count
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_bars)
+        self.timer.start(30)
+
+    def update_bars(self):
+        # Smooth transition to target heights
+        for i in range(self.bar_count):
+            self.bar_heights[i] += (self.target_heights[i] - self.bar_heights[i]) * 0.1
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        bar_width = self.width() // (self.bar_count * 2)
+        center_x = self.width() // 2
+        center_y = self.height() // 2
+
+        for i, height in enumerate(self.bar_heights):
+            x = center_x + (i - self.bar_count // 2) * (bar_width * 2)
+            y = center_y - int(height) // 2
+
+            painter.setBrush(QBrush(QColor(0, 0, 0, 200)))
+            painter.drawEllipse(int(x), int(y), int(bar_width), int(height))
+
+    def update_with_audio(self, audio_data):
+        fft_data = np.abs(np.fft.fft(audio_data)[:self.bar_count]) / 10
+        self.target_heights = np.interp(fft_data, [0, max(fft_data)], [20, 100])
+
+def play_sound_with_volume(file_path, volume=0.5):
+    """Воспроизводит звуковой файл с уменьшением громкости"""
+    with wave.open(file_path, 'rb') as wf:
+        n_channels = wf.getnchannels()
+        sample_width = wf.getsampwidth()
+        frame_rate = wf.getframerate()
+        n_frames = wf.getnframes()
+        audio_data = wf.readframes(n_frames)
+
+        # Преобразуем в массив numpy
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        
+        # Уменьшаем громкость
+        audio_array = (audio_array * volume).astype(np.int16)
+
+        # Создаем новый объект для воспроизведения
+        wave_obj = sa.WaveObject(audio_array.tobytes(), n_channels, sample_width, frame_rate)
+        play_obj = wave_obj.play()
+        play_obj.wait_done()
+
+
+def run_background_task():
+    """Фоновая задача в отдельном потоке."""
+    while True:
+        # Выполняйте фоновую обработку
+        pass
+
+def run_equalizer():
+    """Функция запускает GUI в главном потоке."""
+    app = QApplication(sys.argv)
+    equalizer = EqualizerWindow()  # Предполагается, что EqualizerWindow определен
+    equalizer.show()
+    sys.exit(app.exec_())
+
 if __name__ == "__main__":
     print("Жду..")
     app_dict = load_app_list(APP_LIST_PATH)
@@ -210,10 +292,12 @@ if __name__ == "__main__":
         command = recognize_speech()
         if command and any(keyword in command for keyword in KEYWORDS):
             print("Я вас услышал! Скажите команду.")
+            play_sound_with_volume("sound/start.wav", volume=0.4)
             # Слушаем команду после ключевого слова
             follow_up_command = recognize_speech("Слушаю вашу команду...")
             if follow_up_command:
                 print(f"Распознано: {follow_up_command}")
                 asyncio.run(execute_command(follow_up_command, app_dict))
+                play_sound_with_volume("sound/fin.wav", volume=0.4)
             else:
                 print("Команда не была распознана.")
